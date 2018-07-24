@@ -193,8 +193,8 @@ def main():
 				win = visdom_plot(viz, win, log_dir, title_name,
 				                  args.algo, args.num_frames)
 				if args.algo == 'a2oc':
-					win_options = options_plot(viz, win_options, args.num_frames, agent.log_options_file)
-					win_term = term_prob_plot(viz, win_term, args.num_frames, agent.log_term_prob)
+					win_options = options_plot(viz, win_options, args.num_frames, title_name, agent.log_options_file)
+					win_term = term_prob_plot(viz, win_term, args.num_frames, title_name, agent.log_term_prob)
 			except IOError:
 				pass
 

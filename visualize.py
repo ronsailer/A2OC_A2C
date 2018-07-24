@@ -102,7 +102,7 @@ color_defaults = [
 ]
 
 
-def visdom_plot(viz, win, folder, game, name, num_steps, bin_size=100, smooth=1):
+def visdom_plot(viz, win, folder, super_title, name, num_steps, bin_size=100, smooth=1):
 	tx, ty = load_data(folder, smooth, bin_size)
 	if tx is None or ty is None:
 		return win
@@ -118,8 +118,8 @@ def visdom_plot(viz, win, folder, game, name, num_steps, bin_size=100, smooth=1)
 
 	plt.xlabel('Number of Frames')
 	plt.ylabel('Rewards')
-
-	plt.title(game)
+	plt.suptitle(super_title)
+	plt.title('Reward Over Time')
 	plt.legend(loc=4)
 	plt.show()
 	plt.draw()
@@ -132,7 +132,7 @@ def visdom_plot(viz, win, folder, game, name, num_steps, bin_size=100, smooth=1)
 	image = np.transpose(image, (2, 0, 1))
 	return viz.image(image, win=win)
 
-def options_plot(viz, win, num_steps, file):
+def options_plot(viz, win, num_steps, super_title, file):
 	y = pd.read_csv(file, header=None)
 	x = y[0]
 	y = y.drop(y.columns[0], axis=1)
@@ -150,9 +150,9 @@ def options_plot(viz, win, num_steps, file):
 	plt.yticks(np.array([0.0, 0.2, 0.4, 0.6, 0.8, 1.0]))
 	plt.ylim(0, 1.0)
 
-	plt.ylabel('Percentage of Time Used')
+	plt.ylabel('Proportion of Steps With Option')
 	plt.xlabel('Number of Frames')
-
+	plt.suptitle(super_title)
 	plt.title('Preference of Options Over Time')
 	plt.show()
 	plt.draw()
@@ -165,7 +165,7 @@ def options_plot(viz, win, num_steps, file):
 	image = np.transpose(image, (2, 0, 1))
 	return viz.image(image, win=win)
 
-def term_prob_plot(viz, win, num_steps, file, bin_size=10, smooth=True):
+def term_prob_plot(viz, win, num_steps, super_title, file, bin_size=10, smooth=True):
 	y = pd.read_csv(file, header=None)
 	x, y = y[0], y[1]
 	if smooth:
@@ -186,7 +186,7 @@ def term_prob_plot(viz, win, num_steps, file, bin_size=10, smooth=True):
 
 	plt.ylabel('Probability')
 	plt.xlabel('Number of Frames')
-
+	plt.suptitle(super_title)
 	plt.title('Termination Probability Over Time')
 	plt.show()
 	plt.draw()
