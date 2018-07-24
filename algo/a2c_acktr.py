@@ -111,3 +111,6 @@ class A2C_ACKTR(object):
 		self.optimizer.step()
 
 		return value_loss.item(), action_loss.item(), 0, dist_entropy.item()
+
+	def log(self, current_step):
+		pass

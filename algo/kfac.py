@@ -239,3 +239,6 @@ class KFACOptimizer(optim.Optimizer):
 
         self.optim.step()
         self.steps += 1
+
+    def log(self, current_step):
+	    pass
