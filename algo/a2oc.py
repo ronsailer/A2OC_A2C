@@ -4,6 +4,8 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
+from collections import OrderedDict
+
 from model import OptionCritic
 
 import numpy as np
@@ -44,6 +46,7 @@ class A2OC(object):
 		                               alpha=args.alpha)
 
 		# For tracking purposes
+		self.options_tracker = OrderedDict()
 		for i in range(self.num_options):
 			self.options_tracker[i] = 0
 		self.termination_probs_avg = 0.0
