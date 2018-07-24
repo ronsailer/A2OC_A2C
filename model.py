@@ -4,7 +4,6 @@ import torch.nn as nn
 from distributions import Categorical, DiagGaussian
 from utils import init, init_normc_, Flatten
 
-
 class View(nn.Module):
 	def __init__(self, shape):
 		super(View, self).__init__()
@@ -19,7 +18,6 @@ class OptionCritic(nn.Module):
 		super(OptionCritic, self).__init__()
 
 		torch.set_default_tensor_type(torch.cuda.FloatTensor if args.cuda else torch.FloatTensor)
-
 
 		obs_shape = envs.observation_space.shape
 		obs_shape = (obs_shape[0] * args.num_stack, *obs_shape[1:])
@@ -108,6 +106,11 @@ class OptionCritic(nn.Module):
 		value = value[count, indices].unsqueeze(-1)
 		return value  # dimension: num_threads x 1 or (num_steps * num_threads) x 1
 
+	def get_terminations(self, inputs):
+		actor_features = self.base_net.main(inputs)
+		return self.termination_head(actor_features).gather(1, self.current_options).squeeze()  # dimension: num_threads x 1
+
+
 	def get_terminations_history(self, actor_features):
 		terminations = self.termination_head(actor_features)
 		indices = self.options_history
@@ -152,6 +155,10 @@ class OptionCritic(nn.Module):
 		self.current_options = self.current_options[count]
 		self.terminations = self.termination_head(actor_features)[count, self.current_options].squeeze()  # dimension: num_threads x 1
 		rand_num = torch.rand(1)
+
+		print("option: {} termination: {:.3f} rand: {:.3f}".format(self.current_options.item(),
+		                                                           self.terminations.item(),
+		                                                           rand_num.item()))
 
 		if self.terminations > rand_num:
 			values = self.value_head(actor_features)  # dimension: num_threads x num_options
