@@ -77,7 +77,7 @@ class A2OC(object):
 		action_shape = rollouts.actions.size()[-1]
 		num_steps, num_processes, _ = rollouts.rewards.size()
 
-		values, action_log_probs, dist_entropy, options_value, terminations = self.actor_critic.evaluate_actions(
+		values, action_log_probs, dist_entropy, V, terminations = self.actor_critic.evaluate_actions(
 				rollouts.observations[:-1].view(-1, *obs_shape),
 				rollouts.states[0].view(-1, self.actor_critic.state_size),
 				rollouts.masks[:-1].view(-1, 1),
@@ -87,8 +87,6 @@ class A2OC(object):
 		value_loss = advantages.pow(2).mean()   # no dimension, just scalar
 
 		action_loss = -(advantages.detach() * action_log_probs).mean()  # no dimension, just scalar
-
-		V = options_value.max(1)[0] * (1 - self.actor_critic.options_epsilon) + (self.actor_critic.options_epsilon * options_value.mean(1)[0])
 
 		termination_loss_grad = (values.squeeze() - V + self.actor_critic.delib).detach()
 

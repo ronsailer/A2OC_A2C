@@ -22,6 +22,8 @@ class OptionCritic(nn.Module):
 		obs_shape = envs.observation_space.shape
 		obs_shape = (obs_shape[0] * args.num_stack, *obs_shape[1:])
 
+		self.current_step = 0
+
 		self.num_threads = args.num_processes
 		self.num_options = args.num_options
 		self.num_steps = args.num_steps
@@ -43,8 +45,6 @@ class OptionCritic(nn.Module):
 		self.options_history = torch.zeros(self.num_threads * self.num_steps).long()
 
 		self.terminations = torch.zeros(self.num_threads)
-
-		self.current_step = 0
 
 	def act(self, inputs, states, masks, deterministic=False):
 		actor_features = self.base_net.main(inputs)
@@ -140,7 +140,8 @@ class OptionCritic(nn.Module):
 		return value, action_log_prob, dist_entropy, options_value, terminations
 
 	def get_options_value(self, actor_features):
-		return self.value_head(actor_features)
+		q_vals = self.value_head(actor_features)
+		return q_vals.max(1)[0] * (1 - self.options_epsilon) + (self.options_epsilon * q_vals.mean(1)[0])
 
 	def reset_trackers(self):
 		self.current_step = 0
@@ -156,9 +157,7 @@ class OptionCritic(nn.Module):
 		self.terminations = self.termination_head(actor_features)[count, self.current_options].squeeze()  # dimension: num_threads x 1
 		rand_num = torch.rand(1)
 
-		print("option: {} termination: {:.3f} rand: {:.3f}".format(self.current_options.item(),
-		                                                           self.terminations.item(),
-		                                                           rand_num.item()))
+		cur_option = self.current_options.clone()
 
 		if self.terminations > rand_num:
 			values = self.value_head(actor_features)  # dimension: num_threads x num_options
@@ -167,6 +166,16 @@ class OptionCritic(nn.Module):
 			random_numbers = torch.rand(num_threads)
 			self.current_options = torch.where(random_numbers > self.options_epsilon.expand_as(random_numbers),
 			                                   new_options, random_options)
+
+		if cur_option != self.current_options:
+			print("option: {} termination: {:.3f} rand: {:.3f} switch: {} -> {}".format(self.current_options.item(),
+			                                                           self.terminations.item(),
+			                                                           rand_num.item(), cur_option.item(),
+			                                                                            self.current_options.item()))
+		else:
+			print("option: {} termination: {:.3f} rand: {:.3f}".format(self.current_options.item(),
+				                                                                            self.terminations.item(),
+				                                                                            rand_num.item()))
 
 		action_prob = self.action_head(actor_features).squeeze()[self.current_options]  # dimension: num_threads x num_options x num_actions
 		dist = torch.distributions.Categorical(action_prob)
@@ -216,7 +225,7 @@ class Policy(nn.Module):
 
 		action_log_probs = dist.log_probs(action)
 
-		return value, action, action_log_probs, states
+		return value, action, action_log_probs, states, 0
 
 	def act_enjoy(self, inputs, states, masks, deterministic=False):
 		_, action, _, _, _ = self.act(inputs, states, masks, deterministic=deterministic)
