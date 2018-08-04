@@ -138,8 +138,9 @@ def options_plot(viz, win, num_steps, super_title, file):
 	y = y.drop(y.columns[0], axis=1)
 	y = y.divide(y.sum(axis=1), axis=0).T
 
-	fig = plt.figure()
-	plt.stackplot(x, y, labels=[str(i) for i in range(len(y))])
+	fig, ax = plt.subplots()
+	ax.stackplot(x, y, labels=[str(i) for i in range(len(y))])
+	ax.legend(loc=2)
 
 	tick_fractions = np.array([0.1, 0.2, 0.4, 0.6, 0.8, 1.0])
 	ticks = tick_fractions * num_steps
