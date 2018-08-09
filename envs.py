@@ -1,11 +1,14 @@
 import os
 
 import gym
+import retro
 import numpy as np
 from gym.spaces.box import Box
 
 from baselines import bench
 from baselines.common.atari_wrappers import make_atari, wrap_deepmind
+
+from retro_utils import SonicDiscretizer, RewardScaler
 
 try:
     import dm_control2gym
@@ -23,13 +26,22 @@ except ImportError:
     pass
 
 
-def make_env(env_id, seed, rank, log_dir, add_timestep):
+def make_env(env_id, seed, rank, log_dir, add_timestep, state):
     def _thunk():
-        if env_id.startswith("dm"):
-            _, domain, task = env_id.split('.')
-            env = dm_control2gym.make(domain_name=domain, task_name=task)
-        else:
-            env = gym.make(env_id)
+        try:
+            if env_id.startswith("dm"):
+                _, domain, task = env_id.split('.')
+                env = dm_control2gym.make(domain_name=domain, task_name=task)
+            else:
+                env = gym.make(env_id)
+        except:
+            try:
+                os.makedirs('./bk2')
+            except:
+                pass
+            env = retro.make(game=env_id, state=state, record=True)
+            env = SonicDiscretizer(env)
+            env = RewardScaler(env)
         is_atari = hasattr(gym.envs, 'atari') and isinstance(
             env.unwrapped, gym.envs.atari.atari_env.AtariEnv)
         if is_atari:

@@ -27,10 +27,13 @@ parser.add_argument('--load-dir', default='./trained_models/',
                     help='directory to save agent logs (default: ./trained_models/)')
 parser.add_argument('--add-timestep', action='store_true', default=False,
                     help='add timestep to observations')
+parser.add_argument('--state-name', default=None,
+                    help='state name for Retro games (default: None)')
+
 args = parser.parse_args()
 
 
-env = make_env(args.env_name, args.seed, 0, None, args.add_timestep)
+env = make_env(args.env_name, args.seed, 0, None, args.add_timestep, state=args.state_name)
 env = DummyVecEnv([env])
 
 actor_critic, ob_rms = torch.load(os.path.join(args.load_dir, args.algo, args.env_name + ".pt"), map_location='cpu')
@@ -67,7 +70,7 @@ def update_current_obs(obs):
     current_obs[:, -shape_dim0:] = obs
 
 
-render_func('human')
+render_func('human') # TODO: Sonic crashes here
 obs = env.reset()
 update_current_obs(obs)
 

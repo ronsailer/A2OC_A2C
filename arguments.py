@@ -56,6 +56,8 @@ def get_args():
                         help='number of frames to train (default: 10e6)')
     parser.add_argument('--env-name', default='BreakoutNoFrameskip-v4',
                         help='environment to train on (default: BreakoutNoFrameskip-v4)')
+    parser.add_argument('--state-name', default=None,
+                        help='state name for Retro games (default: None)')
     parser.add_argument('--log-dir-base-path', default='/tmp/gym/',
                         help='directory to save agent logs (default: /tmp/gym)')
     parser.add_argument('--save-dir', default='./trained_models/',

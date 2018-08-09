@@ -27,11 +27,11 @@ class OptionCritic(nn.Module):
 		self.num_threads = args.num_processes
 		self.num_options = args.num_options
 		self.num_steps = args.num_steps
-		self.num_actions = envs.action_space.n
+		self.action_space = envs.action_space
 
 		self.base_net = CNNBase(obs_shape[0], False)
-		self.action_head = nn.Sequential(nn.Linear(self.base_net.output_size, self.num_actions * self.num_options),
-		                                         View((self.num_options, self.num_actions)),
+		self.action_head = nn.Sequential(nn.Linear(self.base_net.output_size, self.action_space.n * self.num_options),
+		                                         View((self.num_options, self.action_space.n)),
 		                                         nn.Softmax(2))
 		self.termination_head = nn.Sequential(nn.Linear(self.base_net.output_size, self.num_options),
 		                                              nn.Sigmoid())
@@ -255,12 +255,12 @@ class CNNBase(nn.Module):
 		                       lambda x: nn.init.constant_(x, 0))
 
 		self.main = nn.Sequential(
-			init_(nn.Conv2d(num_inputs, 16, 8, stride=4)),
+			init_(nn.Conv2d(num_inputs, 16, 8, stride=4)), # output: 16x55x79
 			nn.ReLU(),
-			init_(nn.Conv2d(16, 32, 4, stride=2)),
+			init_(nn.Conv2d(16, 32, 5, stride=2)), # output: 32x26x38
 			nn.ReLU(),
 			Flatten(),
-            init_(nn.Linear(32 * 9 * 9, 256)),
+            init_(nn.Linear(32 * 26 * 38, 256)),
             nn.ReLU()
 		)
 

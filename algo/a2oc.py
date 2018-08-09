@@ -16,10 +16,7 @@ class A2OC(object):
 
 		self.args = args
 
-		self.num_threads = args.num_processes
 		self.num_options = args.num_options
-		self.num_steps = args.num_steps
-		self.num_actions = envs.action_space.n
 
 		self.envs = envs
 

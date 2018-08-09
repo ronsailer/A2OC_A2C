@@ -54,7 +54,7 @@ def main():
 		win_options = None
 		win_term = None
 
-	envs = [make_env(args.env_name, args.seed, i, log_dir, args.add_timestep)
+	envs = [make_env(args.env_name, args.seed, i, log_dir, args.add_timestep, args.state_name)
 	        for i in range(args.num_processes)]
 
 	if args.num_processes > 1:
@@ -94,8 +94,8 @@ def main():
 	current_obs = torch.zeros(args.num_processes, *obs_shape)
 
 	def update_current_obs(obs):
-		shape_dim0 = agent.envs.observation_space.shape[0]
-		obs = torch.from_numpy(obs).float()
+		shape_dim0 = agent.envs.observation_space.shape[0] # Get number of channels
+		obs = torch.from_numpy(obs).float().transpose(3, 2)
 		if args.num_stack > 1:
 			current_obs[:, :-shape_dim0] = current_obs[:, shape_dim0:]
 		current_obs[:, -shape_dim0:] = obs
@@ -156,7 +156,7 @@ def main():
 		value_loss, action_loss, termination_loss, dist_entropy = agent.update(rollouts)
 
 		rollouts.after_update()
-
+		print("j: {}, save_interval: {}, j % save_interval: {}".format(j, args.save_interval, j % args.save_interval))
 		if j % args.save_interval == 0 and args.save_dir != "":
 			save_path = os.path.join(args.save_dir, args.algo)
 			try:
@@ -171,8 +171,9 @@ def main():
 
 			save_model = [save_model,
 			              hasattr(agent.envs, 'ob_rms') and agent.envs.ob_rms or None]
-
-			torch.save(save_model, os.path.join(save_path, args.env_name + ".pt"))
+			file_path = os.path.join(save_path, args.env_name + ".pt")
+			print("saving model to ", file_path)
+			torch.save(save_model, file_path)
 
 		if j % args.log_interval == 0:
 			end = time.time()
