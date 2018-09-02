@@ -2,6 +2,8 @@ import copy
 import glob
 import os
 import time
+import pandas as pd
+import numpy as np
 
 import torch
 from baselines.common.vec_env.dummy_vec_env import DummyVecEnv
@@ -12,7 +14,7 @@ import algo
 from arguments import get_args
 from envs import make_env
 from storage import RolloutStorage
-from visualize import visdom_plot, options_plot, term_prob_plot
+from visualize import visdom_plot, options_plot, term_prob_plot, compare_reward_plot, compare_term_prob_plot
 
 args = get_args()
 
@@ -31,6 +33,15 @@ if args.cuda:
 	torch.cuda.manual_seed(args.seed)
 
 log_dir = os.path.join(args.log_dir_base_path, args.env_name, args.algo)
+base_comp_dir = os.path.join("/tmp", args.env_name)
+
+rewards_file = os.path.join(base_comp_dir, "rewards.csv")
+term_file = os.path.join(base_comp_dir, "terms.csv")
+
+try:
+	os.makedirs(base_comp_dir)
+except:
+	pass
 
 try:
 	os.makedirs(log_dir)
@@ -47,12 +58,25 @@ def main():
 
 	torch.set_num_threads(1)
 
+	# Make sure the file exists. If not, create it.
+	open(rewards_file, 'a').close()
+	open(term_file, 'a').close()
+
+	# Open csv file for appending info
+	try:
+		df_rew = pd.read_csv(rewards_file)
+	except:
+		df_rew = pd.DataFrame()
+		df_rew['ticks'] = np.nan
+
 	if args.vis:
 		from visdom import Visdom
 		viz = Visdom(port=args.port)
 		win = None
 		win_options = None
 		win_term = None
+		win_comp_rew = None
+		win_comp_term = None
 
 	envs = [make_env(args.env_name, args.seed, i, log_dir, args.add_timestep)
 	        for i in range(args.num_processes)]
@@ -75,6 +99,10 @@ def main():
 		                       max_grad_norm=args.max_grad_norm, cuda=args.cuda)
 
 	elif args.algo == 'a2oc':
+		try:
+			df_term = pd.read_csv(term_file)
+		except:
+			df_term = pd.DataFrame()
 		agent = algo.A2OC(envs, args, log_dir)
 
 	elif args.algo == 'ppo':
@@ -118,6 +146,9 @@ def main():
 		title_name += " | "+ str(args.num_options) + " | " + str(args.delib)
 
 	start = time.time()
+	cur_step = 0
+	col_name = args.algo + "|" + str(args.num_options) + "|" + str(args.delib)
+	df_rew[col_name] = np.nan
 	for j in range(num_updates):
 		for step in range(args.num_steps):
 			# Sample actions
@@ -145,6 +176,14 @@ def main():
 
 			update_current_obs(obs)
 			rollouts.insert(current_obs, states, action, action_log_prob, value, reward, masks)
+
+			for rew in reward:
+				while cur_step >= df_rew.shape[0]:
+					df_rew.loc[cur_step] = np.nan
+					df_rew.at[cur_step, 'ticks'] = cur_step
+				df_rew.at[cur_step, col_name] = rew
+				cur_step += 1
+
 
 		with torch.no_grad():
 			next_value = agent.get_value(rollouts.observations[-1],
@@ -195,6 +234,10 @@ def main():
 				if args.algo == 'a2oc':
 					win_options = options_plot(viz, win_options, args.num_frames, title_name, agent.log_options_file)
 					win_term = term_prob_plot(viz, win_term, args.num_frames, title_name, agent.log_term_prob)
+					# win_comp_term = compare_term_prob_plot(viz, win_comp_term,
+					#                                    term_file)
+				win_comp_rew = compare_reward_plot(viz, win_comp_rew, df_rew)
+				df_rew.to_csv(rewards_file)
 			except IOError:
 				pass
 

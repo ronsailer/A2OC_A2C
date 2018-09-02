@@ -201,6 +201,48 @@ def term_prob_plot(viz, win, num_steps, super_title, file, bin_size=10, smooth=T
 	return viz.image(image, win=win)
 
 
+def compare_reward_plot(viz, win, df):
+	fig = plt.figure()
+	for column in list(df.columns.values):
+		if "Unnamed" in column or "ticks" in column:
+			continue
+		plt.plot('ticks', column, data=df, linewidth=2)
+	plt.legend()
+	plt.ylabel('Reward')
+	plt.xlabel('Number of Frames')
+	plt.title('Reward over Time')
+	plt.show()
+	plt.draw()
+
+	image = np.fromstring(fig.canvas.tostring_rgb(), dtype=np.uint8, sep='')
+	image = image.reshape(fig.canvas.get_width_height()[::-1] + (3, ))
+	plt.close(fig)
+
+	# Show it in visdom
+	image = np.transpose(image, (2, 0, 1))
+	return viz.image(image, win=win)
+
+def compare_term_prob_plot(viz, win, csv_file):
+	df = pd.read_csv(csv_file)
+	fig = plt.figure()
+	for column in df[1:]:
+		plt.plot('ticks', column, data=df, linewidth=2)
+	plt.legend()
+	plt.ylabel('Probability')
+	plt.xlabel('Number of Frames')
+	plt.title('Termination Probability over Time')
+	plt.show()
+	plt.draw()
+
+	image = np.fromstring(fig.canvas.tostring_rgb(), dtype=np.uint8, sep='')
+	image = image.reshape(fig.canvas.get_width_height()[::-1] + (3, ))
+	plt.close(fig)
+
+	# Show it in visdom
+	image = np.transpose(image, (2, 0, 1))
+	return viz.image(image, win=win)
+
+
 if __name__ == "__main__":
 	from visdom import Visdom
 	viz = Visdom()
