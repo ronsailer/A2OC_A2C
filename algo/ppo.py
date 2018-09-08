@@ -115,3 +115,6 @@ class PPO(object):
 		dist_entropy_epoch /= num_updates
 
 		return value_loss_epoch, action_loss_epoch, 0, dist_entropy_epoch
+
+	def log(self, current_step):
+		pass

@@ -12,7 +12,7 @@ import algo
 from arguments import get_args
 from envs import make_env
 from storage import RolloutStorage
-from visualize import visdom_plot
+from visualize import visdom_plot, options_plot, term_prob_plot
 
 args = get_args()
 
@@ -55,6 +55,8 @@ def main():
 		from visdom import Visdom
 		viz = Visdom(port=args.port)
 		win = None
+		win_options = None
+		win_term = None
 
 	envs = [make_env(args.env_name, args.seed, i, log_dir, args.add_timestep)
 	        for i in range(args.num_processes)]
@@ -77,7 +79,7 @@ def main():
 		                       max_grad_norm=args.max_grad_norm, cuda=args.cuda)
 
 	elif args.algo == 'a2oc':
-		agent = algo.A2OC(envs, args)
+		agent = algo.A2OC(envs, args, log_dir)
 
 	elif args.algo == 'ppo':
 		agent = algo.PPO(obs_shape, envs.action_space, args.recurrent_policy, args.clip_param, args.ppo_epoch, args.num_mini_batch,
@@ -179,6 +181,7 @@ def main():
 		if j % args.log_interval == 0:
 			end = time.time()
 			total_num_steps = (j + 1) * args.num_processes * args.num_steps
+			agent.log(total_num_steps)
 			print(
 				"Updates {}, num timesteps {}, FPS {}, mean/median reward {:.1f}/{:.1f}, min/max reward {:.1f}/{:.1f}, entropy {:.5f}, value loss {:.5f}, policy loss {:.5f}, termination_loss: {:.5f}".
 					format(j, total_num_steps,
@@ -193,6 +196,9 @@ def main():
 				# Sometimes monitor doesn't properly flush the outputs
 				win = visdom_plot(viz, win, log_dir, title_name,
 				                  args.algo, args.num_frames)
+				if args.algo == 'a2oc':
+					win_options = options_plot(viz, win_options, args.num_frames, title_name, agent.log_options_file)
+					win_term = term_prob_plot(viz, win_term, args.num_frames, title_name, agent.log_term_prob)
 			except IOError:
 				pass
 

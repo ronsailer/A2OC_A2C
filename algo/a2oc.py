@@ -1,6 +1,10 @@
+import os
+
 import torch
 import torch.nn as nn
 import torch.optim as optim
+
+from collections import OrderedDict
 
 from model import OptionCritic
 
@@ -8,7 +12,7 @@ import numpy as np
 
 
 class A2OC(object):
-	def __init__(self, envs, args):
+	def __init__(self, envs, args, log_dir):
 
 		self.args = args
 
@@ -18,6 +22,14 @@ class A2OC(object):
 		self.num_actions = envs.action_space.n
 
 		self.envs = envs
+
+		self.log_dir = log_dir
+
+		self.log_options_file = os.path.join(self.log_dir, "log_options.csv")
+		open(self.log_options_file, 'w').close()
+
+		self.log_term_prob = os.path.join(self.log_dir, "log_term_prob.csv")
+		open(self.log_term_prob, 'w').close()
 
 		self.actor_critic = OptionCritic(envs, args)
 
@@ -33,7 +45,14 @@ class A2OC(object):
 		self.optimizer = optim.RMSprop(self.actor_critic.parameters(), args.lr, eps=args.eps,
 		                               alpha=args.alpha)
 
+		# For tracking purposes
+		self.options_tracker = OrderedDict()
+		for i in range(self.num_options):
+			self.options_tracker[i] = 0
+		self.termination_probs_avg = 0.0
+
 	def act(self, inputs, states, masks, deterministic=False):
+		self.termination_probs_avg = self.actor_critic.get_terminations(inputs).mean().item()
 
 		value, action, action_log_prob, states = self.actor_critic.act(inputs, states, masks, deterministic=deterministic)
 
@@ -58,7 +77,7 @@ class A2OC(object):
 		action_shape = rollouts.actions.size()[-1]
 		num_steps, num_processes, _ = rollouts.rewards.size()
 
-		values, action_log_probs, dist_entropy, options_value, terminations = self.actor_critic.evaluate_actions(
+		values, action_log_probs, dist_entropy, V, terminations = self.actor_critic.evaluate_actions(
 				rollouts.observations[:-1].view(-1, *obs_shape),
 				rollouts.states[0].view(-1, self.actor_critic.state_size),
 				rollouts.masks[:-1].view(-1, 1),
@@ -68,8 +87,6 @@ class A2OC(object):
 		value_loss = advantages.pow(2).mean()   # no dimension, just scalar
 
 		action_loss = -(advantages.detach() * action_log_probs).mean()  # no dimension, just scalar
-
-		V = options_value.max(1)[0] * (1 - self.actor_critic.options_epsilon) + (self.actor_critic.options_epsilon * options_value.mean(1)[0])
 
 		termination_loss_grad = (values.squeeze() - V + self.actor_critic.delib).detach()
 
@@ -89,3 +106,15 @@ class A2OC(object):
 
 	def get_value(self, inputs, states, masks):
 		return self.actor_critic.get_value(inputs)
+
+	def log(self, current_step):
+		for o in self.actor_critic.current_options:
+			self.options_tracker[o.item()] += 1
+
+		f = open(self.log_options_file, 'a')
+		f.write(str(current_step) + "," + ",".join([str(v) for v in self.options_tracker.values()]) + "\n")
+		f.close()
+
+		f = open(self.log_term_prob, 'a')
+		f.write(str(current_step) + "," + "{:.3f}".format(self.termination_probs_avg) + "\n")
+		f.close()
