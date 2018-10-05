@@ -4,6 +4,7 @@
 ## Update 09/27/2017: now supports both Atari and MuJoCo/Roboschool!
 
 This is a PyTorch implementation of
+* Asynchronous Advantage Option Critic (A2OC) is an extension of [A3C] with multiple options to choose from, a policy over options and a deliberation cost for switching between options. (https://arxiv.org/pdf/1709.04571.pdf)
 * Advantage Actor Critic (A2C), a synchronous deterministic version of [A3C](https://arxiv.org/pdf/1602.01783v1.pdf)
 * Proximal Policy Optimization [PPO](https://arxiv.org/pdf/1707.06347.pdf)
 * Scalable trust-region method for deep reinforcement learning using Kronecker-factored approximation [ACKTR](https://arxiv.org/abs/1708.05144)
@@ -95,11 +96,17 @@ python main.py --env-name "PongNoFrameskip-v4" --algo ppo --use-gae --lr 2.5e-4 
 python main.py --algo a2c --env-name "PongNoFrameskip-v4" --algo acktr --num-processes 32 --num-steps 20
 ```
 
+#### A2OC
+
+```bash
+python main.py --algo a2oc --env-name "BreakoutNoFrameskip-v4" --num-frames 1000000 --num-options 8 --delib 0.1
+```
+
 ### MuJoCo
 
 I **highly** recommend to use --add-timestep argument with some mujoco environments (for example, Reacher) despite it's not a default option with OpenAI implementations.
 
-#### A2OC (default algorithm is a2oc so no --algo a2oc is required)
+#### A2OC
 
 ```bash
 python main.py --env-name "Reacher-v2" --num-stack 1 --num-frames 1000000
