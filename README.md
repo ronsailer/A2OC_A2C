@@ -1,7 +1,5 @@
 # pytorch-a2c-a2oc-ppo-acktr
 
-## Update 07/04/2018: Added a2oc!
-
 ## Update 10/06/2017: added enjoy.py and a link to pretrained models!
 ## Update 09/27/2017: now supports both Atari and MuJoCo/Roboschool!
 
@@ -70,8 +68,6 @@ Also I'm searching for volunteers to run all experiments on Atari and MuJoCo (wi
 It's extremely difficult to reproduce results for Reinforcement Learning methods. See ["Deep Reinforcement Learning that Matters"](https://arxiv.org/abs/1709.06560) for more information. I tried to reproduce OpenAI results as closely as possible. However, majors differences in performance can be caused even by minor differences in TensorFlow and PyTorch libraries.
 
 ### TODO
-* Fix termination loss calculation for a2oc. Right now it's being ignored.
-* Clean the code because a ton of stuff is commented out or deprecated, especially in algo/a2oc.py
 * Improve this README file. Rearrange images.
 * Improve performance of KFAC, see kfac.py for more information.
 * Run evaluation for all games and algorithms.
