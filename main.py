@@ -30,7 +30,11 @@ torch.set_default_tensor_type(torch.cuda.FloatTensor if args.cuda else torch.Flo
 if args.cuda:
 	torch.cuda.manual_seed(args.seed)
 
-log_dir = os.path.join(args.log_dir_base_path, args.env_name, args.algo)
+config_str = "_".join([args.env_name, args.algo])
+if args.algo == 'a2oc':
+       config_str = "_".join([args.num_options, args.delib])
+
+log_dir = os.path.join(args.log_dir_base_path, config_str)
 
 try:
 	os.makedirs(log_dir)
@@ -158,7 +162,7 @@ def main():
 		rollouts.after_update()
 
 		if j % args.save_interval == 0 and args.save_dir != "":
-			save_path = os.path.join(args.save_dir, args.algo)
+			save_path = os.path.join(args.save_dir)
 			try:
 				os.makedirs(save_path)
 			except OSError:
@@ -172,7 +176,7 @@ def main():
 			save_model = [save_model,
 			              hasattr(agent.envs, 'ob_rms') and agent.envs.ob_rms or None]
 
-			torch.save(save_model, os.path.join(save_path, args.env_name + ".pt"))
+			torch.save(save_model, os.path.join(save_path, exp_config_str, exp_config_str + ".pt"))
 
 		if j % args.log_interval == 0:
 			end = time.time()
