@@ -26,6 +26,8 @@ class A2C_ACKTR(object):
 		if cuda:
 			self.actor_critic.cuda()
 
+		self.cuda = cuda
+
 		self.acktr = acktr
 
 		self.envs = envs
@@ -45,7 +47,7 @@ class A2C_ACKTR(object):
 
 	def act(self, inputs, states, masks, deterministic=False):
 
-		value, action, action_log_prob, states = self.actor_critic.act(inputs,
+		value, action, action_log_prob, states, _ = self.actor_critic.act(inputs,
 		                                                               states,
 		                                                               masks,
 		                                                               deterministic=deterministic)
@@ -55,6 +57,9 @@ class A2C_ACKTR(object):
 		# Observe reward and next obs
 		obs, reward, done, info = self.envs.step(cpu_actions)
 		reward = torch.from_numpy(np.expand_dims(np.stack(reward), 1)).float()
+
+		if self.cuda:
+			reward = reward.cuda()
 
 		return value, action, action_log_prob, states, obs, reward, done, info
 
