@@ -1,4 +1,4 @@
-# pytorch-a2c-a2oc-ppo-acktr
+# A2OC and A2C in PyTorch
 
 ## Update 07/04/2018: Added a2oc!
 
