@@ -45,7 +45,7 @@ class A2C_ACKTR(object):
 
 	def act(self, inputs, states, masks, deterministic=False):
 
-		value, action, action_log_prob, states = self.actor_critic.act(inputs,
+		value, action, action_log_prob, states, _ = self.actor_critic.act(inputs,
 		                                                               states,
 		                                                               masks,
 		                                                               deterministic=deterministic)

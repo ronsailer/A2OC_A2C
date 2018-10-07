@@ -70,7 +70,7 @@ def update_current_obs(obs):
     current_obs[:, -shape_dim0:] = obs
 
 
-render_func('human') # TODO: Sonic crashes here
+render_func('human')
 obs = env.reset()
 update_current_obs(obs)
 

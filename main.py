@@ -4,6 +4,7 @@ import os
 import time
 
 import torch
+import numpy as np
 from baselines.common.vec_env.dummy_vec_env import DummyVecEnv
 from baselines.common.vec_env.subproc_vec_env import SubprocVecEnv
 from baselines.common.vec_env.vec_normalize import VecNormalize
@@ -95,12 +96,12 @@ def main():
 
 	def update_current_obs(obs):
 		shape_dim0 = agent.envs.observation_space.shape[0] # Get number of channels
-		obs = torch.from_numpy(obs).float().transpose(3, 2)
+		obs = torch.from_numpy(obs).float()
 		if args.num_stack > 1:
 			current_obs[:, :-shape_dim0] = current_obs[:, shape_dim0:]
 		current_obs[:, -shape_dim0:] = obs
 
-	obs = agent.envs.reset()
+	obs = np.array(agent.envs.reset())
 	update_current_obs(obs)
 
 	rollouts.observations[0].copy_(current_obs)

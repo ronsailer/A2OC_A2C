@@ -35,10 +35,6 @@ def make_env(env_id, seed, rank, log_dir, add_timestep, state):
             else:
                 env = gym.make(env_id)
         except:
-            try:
-                os.makedirs('./bk2')
-            except:
-                pass
             env = retro.make(game=env_id, state=state, record=True)
             env = SonicDiscretizer(env)
             env = RewardScaler(env)
@@ -89,7 +85,7 @@ class WrapPyTorch(gym.ObservationWrapper):
         self.observation_space = Box(
             self.observation_space.low[0, 0, 0],
             self.observation_space.high[0, 0, 0],
-            [obs_shape[2], obs_shape[1], obs_shape[0]],
+            [obs_shape[2], obs_shape[0], obs_shape[1]],
             dtype=self.observation_space.dtype)
 
     def observation(self, observation):
