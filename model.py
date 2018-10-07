@@ -49,21 +49,17 @@ class OptionCritic(nn.Module):
 
 		self.select_new_option(actor_features)
 
-		action_prob = self.action_head(actor_features)  # dimension: num_threads x num_options x num_actions
-		dist = torch.distributions.Categorical(action_prob)
+		actions = self.action_head(actor_features)  # dimension: num_threads x num_options x num_actions
 
-		if deterministic:
-			action = dist.mode().squeeze()  # dimension: num_threads x num_options
-		else:
-			action = dist.sample().squeeze()  # dimension: num_threads x num_options
-		action_log_prob = dist.log_probs(action).squeeze()  # dimension: num_threads x num_options
+		actions_logs = torch.log(actions).squeeze()  # dimension: num_threads x num_options
+		count_threads = torch.arange(actions.shape[0]).long()
 
-		action = action.gather(1, self.current_options)  # dimension: num_threads x 1
-		action_log_prob = action_log_prob.gather(1, self.current_options)  # dimension: num_threads x 1
+		actions = actions[count_threads, self.current_options.squeeze(), :]  # dimension: num_threads x 1
+		actions_logs = actions_logs[count_threads, self.current_options.squeeze(), :]  # dimension: num_threads x 1
 
 		value = self.get_value(inputs)  # dimension: num_threads x 1
 
-		return value, action, action_log_prob, states
+		return value, actions, actions_logs, states
 
 	def select_new_option(self, inputs):
 		dist = self.policy_over_options(inputs)  # dimension: num_threads x num_options
@@ -102,21 +98,17 @@ class OptionCritic(nn.Module):
 		value = self.get_value(inputs)
 
 		actor_features = self.base_net.main(inputs)
-		action_prob = self.action_head(actor_features)  # dimension: num_threads x num_options x num_actions
+		actions = self.action_head(actor_features)  # dimension: num_threads x num_options x num_actions
 
 		count = torch.arange(self.num_steps * self.num_threads).long()
 		indices = self.options_history.squeeze()
-		action_prob = action_prob[count, indices, :]
-		dist = torch.distributions.Categorical(action_prob)
-		f_log_probs = lambda actions: dist.log_prob(actions.squeeze(-1)).unsqueeze(-1)
-		action_log_prob = f_log_probs(action)  # dimension: num_threads x num_options
-
-		dist_entropy = dist.entropy().mean()
+		actions_logs = actions[count, indices, :]
+		actions_logs = torch.log(actions_logs)  # dimension: num_threads x num_options
 
 		# The expectancy of the value given state and policy over options
 		options_value = self.get_options_value(actor_features)  # dimension: num_threads x 1
 
-		return value, action_log_prob, dist_entropy, options_value
+		return value, actions_logs, options_value
 
 	def get_options_value(self, actor_features):
 		return self.value_head(actor_features).gather(1, self.options_history)  # dimension: num_steps * num_threads x 1
@@ -145,15 +137,13 @@ class OptionCritic(nn.Module):
 			if old_options != self.current_options:
 				print(old_options, "->", self.current_options)
 
-		action_prob = self.action_head(actor_features).squeeze()[self.current_options]  # dimension: num_threads x num_options x num_actions
-		dist = torch.distributions.Categorical(action_prob)
+		actions = self.action_head(actor_features)  # dimension: num_threads x num_options x num_actions
 
-		if deterministic:
-			action = dist.mode().squeeze()  # dimension: num_threads x num_options
-		else:
-			action = dist.sample().squeeze()  # dimension: num_threads x num_options
+		count_threads = torch.arange(actions.shape[0]).long()
 
-		return action.expand([1,1])
+		actions = actions[count_threads, self.current_options.squeeze(), :]  # dimension: num_threads x 1
+
+		return actions.squeeze()
 
 
 class Policy(nn.Module):
@@ -282,7 +272,7 @@ class MLPBase(nn.Module):
 		                       init_normc_,
 		                       lambda x: nn.init.constant_(x, 0))
 
-		self.actor = nn.Sequential(
+		self.main = nn.Sequential(
 				init_(nn.Linear(num_inputs, 64)),
 				nn.Tanh(),
 				init_(nn.Linear(64, 64)),
@@ -310,6 +300,6 @@ class MLPBase(nn.Module):
 
 	def forward(self, inputs, states, masks):
 		hidden_critic = self.critic(inputs)
-		hidden_actor = self.actor(inputs)
+		hidden_actor = self.main(inputs)
 
 		return self.critic_linear(hidden_critic), hidden_actor, states

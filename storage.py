@@ -9,12 +9,13 @@ class RolloutStorage(object):
         self.rewards = torch.zeros(num_steps, num_processes, 1)
         self.value_preds = torch.zeros(num_steps + 1, num_processes, 1)
         self.returns = torch.zeros(num_steps + 1, num_processes, 1)
-        self.action_log_probs = torch.zeros(num_steps, num_processes, 1)
         if action_space.__class__.__name__ == 'Discrete':
             action_shape = 1
         else:
             action_shape = action_space.shape[0]
         self.actions = torch.zeros(num_steps, num_processes, action_shape)
+        self.action_log_probs = torch.zeros(num_steps, num_processes, action_shape)
+
         if action_space.__class__.__name__ == 'Discrete':
             self.actions = self.actions.long()
         self.masks = torch.ones(num_steps + 1, num_processes, 1)

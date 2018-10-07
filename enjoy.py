@@ -1,6 +1,7 @@
 import argparse
 import os
 import types
+from osim.env import ProstheticsEnv
 
 import numpy as np
 import torch
@@ -27,27 +28,11 @@ parser.add_argument('--add-timestep', action='store_true', default=False,
 args = parser.parse_args()
 
 
-env = make_env(args.env_name, args.seed, 0, None, args.add_timestep)
-env = DummyVecEnv([env])
+env = ProstheticsEnv(visualize=True)
 
 actor_critic, ob_rms = torch.load(os.path.join(args.load_dir, args.algo, args.env_name + ".pt"), map_location='cpu')
 
-
-if len(env.observation_space.shape) == 1:
-    env = VecNormalize(env, ret=False)
-    env.ob_rms = ob_rms
-
-    # An ugly hack to remove updates
-    def _obfilt(self, obs):
-        if self.ob_rms:
-            obs = np.clip((obs - self.ob_rms.mean) / np.sqrt(self.ob_rms.var + self.epsilon), -self.clipob, self.clipob)
-            return obs
-        else:
-            return obs
-    env._obfilt = types.MethodType(_obfilt, env)
-    render_func = env.venv.envs[0].render
-else:
-    render_func = env.envs[0].render
+render_func = env.render
 
 obs_shape = env.observation_space.shape
 obs_shape = (obs_shape[0] * args.num_stack, *obs_shape[1:])
@@ -55,18 +40,8 @@ current_obs = torch.zeros(1, *obs_shape)
 states = torch.zeros(1, actor_critic.state_size)
 masks = torch.zeros(1, 1)
 
-
-def update_current_obs(obs):
-    shape_dim0 = env.observation_space.shape[0]
-    obs = torch.from_numpy(obs[0]).float()
-    if args.num_stack > 1:
-        current_obs[:, :-shape_dim0] = current_obs[:, shape_dim0:]
-    current_obs[:, -shape_dim0:] = obs
-
-
 render_func('human')
 obs = env.reset()
-update_current_obs(obs)
 
 if args.env_name.find('Bullet') > -1:
     import pybullet as p
@@ -78,8 +53,8 @@ if args.env_name.find('Bullet') > -1:
 
 while True:
     with torch.no_grad():
-        action = actor_critic.act_enjoy(current_obs, states, masks)
-    cpu_actions = action.squeeze(1).cpu().numpy()
+        actions = actor_critic.act_enjoy(current_obs, states, masks)
+    cpu_actions = actions.cpu().numpy()
     print(cpu_actions)
     # Observe reward and next obs
     obs, reward, done, _ = env.step(cpu_actions)
@@ -90,7 +65,6 @@ while True:
         current_obs *= masks.unsqueeze(2).unsqueeze(2)
     else:
         current_obs *= masks
-    update_current_obs(obs)
 
     if args.env_name.find('Bullet') > -1:
         if torsoId > -1:

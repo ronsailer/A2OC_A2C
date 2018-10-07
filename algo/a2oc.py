@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-from model import CNNBase, OptionCritic
+from model import MLPBase, CNNBase, OptionCritic
 
 import numpy as np
 
@@ -24,17 +24,17 @@ class A2OC(object):
 		self.num_threads = args.num_processes
 		self.num_options = args.num_options
 		self.num_steps = args.num_steps
-		self.num_actions = envs.action_space.n
+		self.num_actions = envs.action_space.shape[0]
 
 		self.envs = envs
 
 		obs_shape = envs.observation_space.shape
 		obs_shape = (obs_shape[0] * args.num_stack, *obs_shape[1:])
 
-		self.base = CNNBase(obs_shape[0], False)
+		self.base = MLPBase(obs_shape[0])
 		self.options_action_head = nn.Sequential(nn.Linear(self.base.output_size, self.num_actions * self.num_options),
 		                                         View((self.num_options, self.num_actions)),
-		                                         nn.Softmax(2))
+		                                         nn.Sigmoid())
 		self.options_termination_head = nn.Sequential(nn.Linear(self.base.output_size, self.num_options),
 		                                              nn.Sigmoid())
 		self.options_value_head = nn.Linear(self.base.output_size, self.num_options)
@@ -85,14 +85,14 @@ class A2OC(object):
 		action_shape = rollouts.actions.size()[-1]
 		num_steps, num_processes, _ = rollouts.rewards.size()
 
-		values, action_log_probs, dist_entropy, options_value = self.actor_critic.evaluate_actions(
+		values, action_log_probs, options_value = self.actor_critic.evaluate_actions(
 				rollouts.observations[:-1].view(-1, *obs_shape),
 				rollouts.states[0].view(-1, self.actor_critic.state_size),
 				rollouts.masks[:-1].view(-1, 1),
 				rollouts.actions.view(-1, action_shape))
 
 		values = values.view(num_steps, num_processes, 1)   # n_steps x n_processes x 1
-		action_log_probs = action_log_probs.view(num_steps, num_processes, 1)   # n_steps x n_processes x 1
+		action_log_probs = action_log_probs.view(num_steps, num_processes, -1)   # n_steps x n_processes x 1
 
 		advantages = rollouts.returns[:-1] - values     # n_steps x n_processes x 1
 		value_loss = advantages.pow(2).mean()   # no dimension, just scalar
@@ -107,8 +107,7 @@ class A2OC(object):
 
 		termination_loss = ((values - V + self.actor_critic.delib).detach() * self.actor_critic.terminations_history).mean()  # n_steps x n_processes x 1
 		self.optimizer.zero_grad()
-		(value_loss * self.value_loss_coef - action_loss -
-		 dist_entropy * self.entropy_coef + termination_loss * self.termination_loss_coef).backward()
+		(value_loss * self.value_loss_coef - action_loss + termination_loss * self.termination_loss_coef).backward()
 
 		nn.utils.clip_grad_norm_(self.actor_critic.parameters(), self.max_grad_norm)
 
@@ -117,7 +116,7 @@ class A2OC(object):
 		self.actor_critic.options_history = torch.tensor([]).long()
 		self.actor_critic.terminations_history = torch.tensor([])
 
-		return value_loss.item(), action_loss.item(), termination_loss, dist_entropy.item()
+		return value_loss.item(), action_loss.item(), termination_loss, 0
 
 	def get_value(self, inputs, states, masks):
 		return self.actor_critic.get_value(inputs)
